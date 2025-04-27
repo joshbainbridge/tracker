@@ -14,6 +14,12 @@ let
     runtimeInputs = with pkgs; [ jq ollama ];
     text = builtins.readFile ../bin/process-screenshots.sh;
   };
+
+  process-summaries = pkgs.writeShellApplication {
+    name = "process-summaries";
+    runtimeInputs = with pkgs; [ jq ollama ];
+    text = builtins.readFile ../bin/process-summaries.sh;
+  };
 in {
   options.services.time-tracker = {
     enable = lib.mkEnableOption "Time tracker service";
@@ -56,7 +62,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ capture-screenshot process-screenshots ];
+    home.packages = [ capture-screenshot process-screenshots process-summaries ];
 
     # Ensure ollama is enabled
     services.ollama.enable = true;
@@ -98,6 +104,17 @@ in {
         config = {
           Label = "org.nix-community.home.time-tracker-process";
           ProgramArguments = [ "${process-screenshots}/bin/process-screenshots" ];
+          KeepAlive = false;
+          RunAtLoad = false;
+          StartInterval = cfg.processingInterval * 60;
+        };
+      };
+
+      time-tracker-summaries = {
+        enable = true;
+        config = {
+          Label = "org.nix-community.home.time-tracker-summaries";
+          ProgramArguments = [ "${process-summaries}/bin/process-summaries" ];
           KeepAlive = false;
           RunAtLoad = false;
           StartInterval = cfg.processingInterval * 60;
