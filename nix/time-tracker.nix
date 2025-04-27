@@ -20,6 +20,12 @@ let
     runtimeInputs = with pkgs; [ jq ollama ];
     text = builtins.readFile ../bin/process-summaries.sh;
   };
+
+  query-summaries = pkgs.writeShellApplication {
+    name = "query-summaries";
+    runtimeInputs = with pkgs; [ jq ollama ];
+    text = builtins.readFile ../bin/query-summaries.sh;
+  };
 in {
   options.services.time-tracker = {
     enable = lib.mkEnableOption "Time tracker service";
@@ -62,7 +68,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ capture-screenshot process-screenshots process-summaries ];
+    home.packages = [ capture-screenshot process-screenshots process-summaries query-summaries ];
 
     # Ensure ollama is enabled
     services.ollama.enable = true;
