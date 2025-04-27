@@ -51,9 +51,39 @@ Make sure to replace `/path/to/tracker` with the actual path to this repository.
 | `workStartHour` | Start hour of work day (24-hour format, 0-23) | `9` |
 | `workEndHour` | End hour of work day (24-hour format, 0-23) | `18` |
 
+## User Context
+
+You can enhance the accuracy of AI-generated summaries by providing personal context about your work. Create a `user-context.txt` file in the `$HOME/.time-tracker/` directory that includes information such as:
+
+- Your professional role
+- Projects you're working on
+- Project IDs for time tracking
+- Usual work patterns
+- Specific activities you want to track
+
+Example `user-context.txt`:
+```
+I'm a software developer working on several projects:
+- Project X (ID: PRJ-123): Backend API development in Node.js
+- Project Y (ID: PRJ-456): Frontend application using React
+- Project Z (ID: PRJ-789): Database optimization and cloud infrastructure
+
+My work pattern usually involves:
+- Morning: Focused coding sessions, usually on Project X
+- Midday: Meetings and code reviews
+- Afternoon: Frontend work on Project Y
+- Occasional infrastructure tasks for Project Z
+
+I need to track time for billing purposes, especially for Projects X and Y.
+```
+
+The time tracker will automatically include this information in AI prompts, resulting in more relevant and accurate activity summaries.
+
 ## Output
 
-The service generates three JSON files in the `$HOME/.time-tracker/` directory:
+The service generates three JSON files in the `$HOME/.time-tracker/` directory.
+
+**Note:** Temporary screenshot PNG files are stored under `/tmp/time-tracker` and are automatically deleted after processing.
 
 1. **Activity Snapshots** (`activity-snapshots.json`):
    ```json

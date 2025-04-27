@@ -1,0 +1,12 @@
+I'm a software developer working on several projects:
+- Project X (ID: PRJ-123): Backend API development in Node.js
+- Project Y (ID: PRJ-456): Frontend application using React
+- Project Z (ID: PRJ-789): Database optimization and cloud infrastructure
+
+My work pattern usually involves:
+- Morning: Focused coding sessions, usually on Project X
+- Midday: Meetings and code reviews
+- Afternoon: Frontend work on Project Y
+- Occasional infrastructure tasks for Project Z
+
+I need to track time for billing purposes, especially for Projects X and Y.

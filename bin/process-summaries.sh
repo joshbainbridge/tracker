@@ -5,6 +5,7 @@ set -euo pipefail
 ACTIVITY_FILE="${ACTIVITY_FILE:-$HOME/.time-tracker/activity-snapshots.json}"
 HOURLY_SUMMARY_FILE="${HOURLY_SUMMARY_FILE:-$HOME/.time-tracker/hourly-summaries.json}"
 DAILY_SUMMARY_FILE="${DAILY_SUMMARY_FILE:-$HOME/.time-tracker/daily-summaries.json}"
+USER_CONTEXT_FILE="${USER_CONTEXT_FILE:-$HOME/.time-tracker/user-context.txt}"
 
 # Create output files if they don't exist
 for file in "$HOURLY_SUMMARY_FILE" "$DAILY_SUMMARY_FILE"; do
@@ -13,6 +14,12 @@ for file in "$HOURLY_SUMMARY_FILE" "$DAILY_SUMMARY_FILE"; do
     echo '{}' > "$file"
   fi
 done
+
+# Read user context if available
+USER_CONTEXT=""
+if [ -f "$USER_CONTEXT_FILE" ]; then
+  USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
+fi
 
 # Process data for yesterday
 YESTERDAY=$(date -v-1d +"%Y-%m-%d")
@@ -45,7 +52,7 @@ for HOUR in {00..23}; do
   fi
 
   # Generate summary using ollama
-  HOUR_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following activities for the hour $YESTERDAY $HOUR:00. What was the person primarily working on during this hour? Be concise (max 500 characters). Activities: $(echo "$HOUR_DATA" | jq -c)")
+  HOUR_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following activities for the hour $YESTERDAY $HOUR:00. ${USER_CONTEXT} What was the person primarily working on during this hour? Be concise (max 500 characters). Activities: $(echo "$HOUR_DATA" | jq -c)")
 
   # Add hourly summary to the hourly summaries file
   temp_file=$(mktemp)
@@ -65,7 +72,7 @@ if [ "$(echo "$HOURS_DATA" | jq 'length')" -eq 0 ]; then
 fi
 
 # Generate daily summary using ollama
-DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following hourly activities for the day $YESTERDAY. What was the person primarily working on during this day? How many productive hours? Be concise (max 1000 characters). Hourly summaries: $(echo "$HOURS_DATA" | jq -c)")
+DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following hourly activities for the day $YESTERDAY. ${USER_CONTEXT} What was the person primarily working on during this day? How many productive hours? Be concise (max 1000 characters). Hourly summaries: $(echo "$HOURS_DATA" | jq -c)")
 
 # Add daily summary to the daily summaries file
 temp_file=$(mktemp)

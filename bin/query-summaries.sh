@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Set default files
 DAILY_SUMMARY_FILE="${DAILY_SUMMARY_FILE:-$HOME/.time-tracker/daily-summaries.json}"
+USER_CONTEXT_FILE="${USER_CONTEXT_FILE:-$HOME/.time-tracker/user-context.txt}"
 
 # Display usage information
 function show_usage {
@@ -106,6 +107,12 @@ if [ -z "$START_DATE" ] || [ -z "$END_DATE" ]; then
   exit 1
 fi
 
+# Read user context if available
+USER_CONTEXT=""
+if [ -f "$USER_CONTEXT_FILE" ]; then
+  USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
+fi
+
 # Function to check if a date is within range
 is_date_in_range() {
   local check_date="$1"
@@ -140,25 +147,21 @@ for date in $DATES; do
   fi
 done
 
-# Generate overall summary
-echo "Overall Summary for $START_DATE to $END_DATE"
-echo "========================================================"
-
 # Generate overall summary using ollama if we found any data
 if [ "$(echo "$PERIOD_SUMMARIES" | jq 'length')" -gt 0 ]; then
   # Create the prompt for Ollama
-  OLLAMA_PROMPT="Analyze the following daily summaries from $START_DATE to $END_DATE. Provide a concise overview of the main activities and accomplishments during this period. Also calculate approximately how many productive hours were spent and on what main categories of work. Daily summaries: $(echo "$PERIOD_SUMMARIES" | jq -c)"
+  OLLAMA_PROMPT="Analyze the following daily summaries from $START_DATE to $END_DATE. ${USER_CONTEXT} Provide a concise overview of the main activities and accomplishments during this period. Also calculate approximately how many productive hours were spent and on what main categories of work. Daily summaries: $(echo "$PERIOD_SUMMARIES" | jq -c)"
   
   # If debug mode is enabled, show the input data
   if [ "$DEBUG" -eq 1 ]; then
     echo "DEBUG: Ollama Prompt:"
-    echo "-------------------"
+    echo "---------------------"
     echo "$OLLAMA_PROMPT"
     echo "-------------------"
     echo "DEBUG: Daily Summaries Input:"
-    echo "-------------------"
+    echo "-----------------------------"
     echo "$PERIOD_SUMMARIES" | jq
-    echo "-------------------"
+    exit 0
   fi
   
   # Run the Ollama model
