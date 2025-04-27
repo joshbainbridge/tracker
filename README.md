@@ -1,6 +1,8 @@
 # Time Tracker
 
-A Nix-based time tracking service that captures periodic screenshots and uses Ollama to summarize activities.
+A Nix-based time tracking service for macOS that captures periodic screenshots and uses Ollama to summarize activities.
+
+**Note:** This service is designed specifically for macOS using launchd agents.
 
 ## Features
 
@@ -12,11 +14,11 @@ A Nix-based time tracking service that captures periodic screenshots and uses Ol
 
 ## Installation
 
+This service requires Nix and Home Manager.
+
 Add the following to your `home.nix`:
 
 ```nix
-{ config, pkgs, ... }:
-
 {
   imports = [
     /path/to/tracker/nix/time-tracker.nix
@@ -24,8 +26,12 @@ Add the following to your `home.nix`:
 
   services.time-tracker = {
     enable = true;
-    screenshotInterval = 300;  # Screenshot every 5 minutes
-    processingInterval = 1800;  # Process every half hour
+    screenshotInterval = 5;
+    processingInterval = 30;
+    workHoursOnly = true;
+    weekdaysOnly = true;
+    workStartHour = 9;
+    workEndHour = 18;
   };
 }
 ```
@@ -37,18 +43,12 @@ Make sure to replace `/path/to/tracker` with the actual path to this repository.
 | Option | Description | Default |
 |--------|-------------|---------|
 | `enable` | Enable the time tracker service | `false` |
-| `screenshotInterval` | Interval in seconds between screenshots | `300` |
-| `processingInterval` | Interval in seconds between processing screenshots | `1800` |
-
-## macOS Screen Recording Permissions
-
-On macOS, you'll need to grant screen recording permissions to the Terminal or iTerm app that runs your Home Manager commands. To do this:
-
-1. Go to System Preferences > Security & Privacy > Privacy > Screen Recording.
-2. Add your terminal application to the list of allowed applications.
-3. Log out and log back in for the changes to take effect.
-
-You may also need to grant screen recording permissions to the `launchd` process.
+| `screenshotInterval` | Interval in minutes between screenshots | `5` |
+| `processingInterval` | Interval in minutes between processing screenshots | `30` |
+| `workHoursOnly` | Whether to run only during configured work hours | `true` |
+| `weekdaysOnly` | Whether to run only on weekdays (Monday-Friday) | `true` |
+| `workStartHour` | Start hour of work day (24-hour format, 0-23) | `9` |
+| `workEndHour` | End hour of work day (24-hour format, 0-23) | `18` |
 
 ## Output
 
