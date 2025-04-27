@@ -36,7 +36,7 @@ for HOUR in {00..23}; do
 
   # Filter activity data for this hour of yesterday
   HOUR_START="$YESTERDAY-$HOUR"
-  HOUR_DATA=$(jq --arg start "$HOUR_START" '[.[] | select(.timestamp | startswith($start))]' "$ACTIVITY_FILE")
+  HOUR_DATA=$(jq --arg start "$HOUR_START" 'with_entries(select(.key | startswith($start))) | to_entries | map({timestamp: .key, activity: .value})' "$ACTIVITY_FILE")
 
   # Skip if no data for this hour
   if [ "$(echo "$HOUR_DATA" | jq 'length')" -eq 0 ]; then
@@ -49,8 +49,7 @@ for HOUR in {00..23}; do
 
   # Add hourly summary to the hourly summaries file
   temp_file=$(mktemp)
-  jq --arg key "$HOUR_KEY" --arg summary "$HOUR_SUMMARY" --argjson activities "$HOUR_DATA" \
-    '. + {($key): {"summary": $summary, "activities": $activities}}' "$HOURLY_SUMMARY_FILE" > "$temp_file"
+  jq --arg key "$HOUR_KEY" --arg summary "$HOUR_SUMMARY" '. + {($key): $summary}' "$HOURLY_SUMMARY_FILE" > "$temp_file"
   mv "$temp_file" "$HOURLY_SUMMARY_FILE"
 
   echo "Generated hourly summary for $HOUR_KEY"
@@ -70,8 +69,7 @@ DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following hourly activ
 
 # Add daily summary to the daily summaries file
 temp_file=$(mktemp)
-jq --arg date "$YESTERDAY" --arg summary "$DAY_SUMMARY" --argjson hours "$HOURS_DATA" \
-  '. + {($date): {"summary": $summary, "hours": $hours}}' "$DAILY_SUMMARY_FILE" > "$temp_file"
+jq --arg date "$YESTERDAY" --arg summary "$DAY_SUMMARY" '. + {($date): $summary}' "$DAILY_SUMMARY_FILE" > "$temp_file"
 mv "$temp_file" "$DAILY_SUMMARY_FILE"
 
 echo "Generated daily summary for $YESTERDAY"

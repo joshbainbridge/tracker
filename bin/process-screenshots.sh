@@ -7,7 +7,7 @@ OUTPUT_FILE="${OUTPUT_FILE:-$HOME/.time-tracker/activity-snapshots.json}"
 # Create output directory and file if they don't exist
 mkdir -p "$(dirname "$OUTPUT_FILE")"
 if [ ! -f "$OUTPUT_FILE" ]; then
-  echo '[]' > "$OUTPUT_FILE"
+  echo '{}' > "$OUTPUT_FILE"
 fi
 
 # Make sure screenshots directory exists
@@ -27,7 +27,7 @@ for screenshot in "$SCREENSHOT_DIR"/*.png; do
   
   # Add to JSON file
   temp_file=$(mktemp)
-  jq --arg timestamp "$timestamp" --arg summary "$summary" '. += [{"timestamp": $timestamp, "activity": $summary}]' "$OUTPUT_FILE" > "$temp_file"
+  jq --arg timestamp "$timestamp" --arg summary "$summary" '. + {($timestamp): $summary}' "$OUTPUT_FILE" > "$temp_file"
   mv "$temp_file" "$OUTPUT_FILE"
   
   # Delete processed screenshot
