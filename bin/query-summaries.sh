@@ -15,20 +15,23 @@ function show_usage {
   echo "  --end DATE      End date (YYYY-MM-DD)"
   echo "  --week WEEK     Week number (1-53)"
   echo "  --year YEAR     Year (YYYY), defaults to current year"
+  echo "  --calendar NAME Include events from specified calendar"
   echo "  --debug         Show debug information, including Ollama input"
   echo "  --help          Display this help message"
   echo ""
   echo "Examples:"
   echo "  query-summaries --start 2025-04-21 --end 2025-04-25"
   echo "  query-summaries --week 17 --year 2025"
+  echo "  query-summaries --week 17 --calendar 'Work'"
 }
 
 # Parse arguments
 START_DATE=""
 END_DATE=""
 WEEK_NUMBER=""
-YEAR=$(date +"%Y")
+YEAR_NUMBER=$(date +"%Y")
 DEBUG=0
+CALENDAR_NAME=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,7 +48,11 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --year)
-      YEAR="$2"
+      YEAR_NUMBER="$2"
+      shift 2
+      ;;
+    --calendar)
+      CALENDAR_NAME="$2"
       shift 2
       ;;
     --debug)
@@ -73,7 +80,7 @@ fi
 # Calculate dates from week number if provided
 if [ -n "$WEEK_NUMBER" ]; then
   # Calculate the date of the first day of the year
-  FIRST_DAY=$(date -j -f "%Y-%m-%d" "$YEAR-01-01" +"%Y-%m-%d")
+  FIRST_DAY=$(date -j -f "%Y-%m-%d" "$YEAR_NUMBER-01-01" +"%Y-%m-%d")
   
   # Calculate the day of week of the first day (1-7, where 1 is Monday)
   FIRST_DAY_WEEKDAY=$(date -j -f "%Y-%m-%d" "$FIRST_DAY" +"%u")
@@ -97,7 +104,7 @@ if [ -n "$WEEK_NUMBER" ]; then
   # Calculate the Friday of the requested week (4 days after Monday)
   END_DATE=$(date -j -v+4d -f "%Y-%m-%d" "$START_DATE" +"%Y-%m-%d")
   
-  echo "Week $WEEK_NUMBER of $YEAR: $START_DATE to $END_DATE (Monday to Friday)"
+  echo "Week $WEEK_NUMBER of $YEAR_NUMBER: $START_DATE to $END_DATE (Monday to Friday)"
 fi
 
 # Validate that we have a date range
@@ -110,62 +117,121 @@ fi
 # Read user context if available
 USER_CONTEXT=""
 if [ -f "$USER_CONTEXT_FILE" ]; then
-  USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
+  USER_CONTEXT=$(cat "$USER_CONTEXT_FILE")
 fi
 
-# Function to check if a date is within range
-is_date_in_range() {
-  local check_date="$1"
-  local start_date="$2"
-  local end_date="$3"
-  
-  # Convert dates to seconds since epoch for comparison
-  local check_seconds
-  check_seconds=$(date -j -f "%Y-%m-%d" "$check_date" +"%s")
-  local start_seconds
-  start_seconds=$(date -j -f "%Y-%m-%d" "$start_date" +"%s")
-  local end_seconds
-  end_seconds=$(date -j -f "%Y-%m-%d" "$end_date" +"%s")
-  
-  # Check if date is within range (inclusive)
-  if [ "$check_seconds" -ge "$start_seconds" ] && [ "$check_seconds" -le "$end_seconds" ]; then
-    return 0
-  else
-    return 1
-  fi
+# Function to get calendar events for a specific date
+get_calendar_events() {
+  target_date="$1"
+  calendar_name="$2"
+
+  swift - << 'EOF' "$target_date" "$calendar_name"
+import Foundation
+import EventKit
+
+let args = CommandLine.arguments
+guard args.count == 3 else {
+    print("Expected 2 arguments: targetDate and calendarName")
+    exit(1)
 }
 
-# Extract all dates from the summaries file
-DATES=$(jq -r 'keys[]' "$DAILY_SUMMARY_FILE")
+let targetDateString = args[1]
+let targetCalendarName = args[2]
+
+let eventStore = EKEventStore()
+let semaphore = DispatchSemaphore(value: 0)
+
+eventStore.requestFullAccessToEvents { granted, error in
+    if !granted || error != nil {
+        print("Access to Calendar denied")
+        semaphore.signal()
+        return
+    }
+
+    let inputFormatter = ISO8601DateFormatter()
+    inputFormatter.formatOptions = [.withFullDate]
+    let displayFormatter = DateFormatter()
+    displayFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+
+    guard let startDate = inputFormatter.date(from: targetDateString) else {
+        print("Invalid date format")
+        semaphore.signal()
+        return
+    }
+    let endDate = Calendar.current.date(byAdding: .day, value: 1, to: startDate)!
+
+    let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+    let events = eventStore.events(matching: predicate)
+
+    for event in events.sorted(by: { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }) {
+        if event.calendar.title == targetCalendarName,
+           let start = event.startDate,
+           let end = event.endDate {
+            let minutes = Int(end.timeIntervalSince(start) / 60)
+            print("\(event.title ?? "No Title") | \(displayFormatter.string(from: start)) → \(displayFormatter.string(from: end)) | \(minutes) min")
+        }
+    }
+
+    semaphore.signal()
+}
+
+_ = semaphore.wait(timeout: .distantFuture)
+EOF
+}
 
 # Get all summaries in the date range
-PERIOD_SUMMARIES="{}"
-for date in $DATES; do
-  if is_date_in_range "$date" "$START_DATE" "$END_DATE"; then
-    summary=$(jq -r --arg date "$date" '.[$date]' "$DAILY_SUMMARY_FILE")
-    PERIOD_SUMMARIES=$(echo "$PERIOD_SUMMARIES" | jq --arg date "$date" --arg summary "$summary" '. + {($date): $summary}')
+PERIOD_SUMMARIES=$(jq -c --arg start "$START_DATE" --arg end "$END_DATE" \
+'to_entries[] | select(.key >= $start and .key <= $end)' \
+"$DAILY_SUMMARY_FILE" \
+| while read -r entry; do
+  date=$(jq -r '.key' <<< "$entry")
+  summary=$(jq -r '.value' <<< "$entry")
+  echo "Date:"
+  echo "$date"
+  echo
+  echo "Summary:"
+  echo "$summary"
+  echo
+
+  if [ -n "$CALENDAR_NAME" ]; then
+    events=$(get_calendar_events "$date" "$CALENDAR_NAME")
+    echo "Calendar:"
+    echo "$events"
+    echo
   fi
-done
+done)
 
 # Generate overall summary using ollama if we found any data
-if [ "$(echo "$PERIOD_SUMMARIES" | jq 'length')" -gt 0 ]; then
+if [ -n "$PERIOD_SUMMARIES" ]; then
   # Create the prompt for Ollama
-  OLLAMA_PROMPT="Analyze the following daily summaries from $START_DATE to $END_DATE. ${USER_CONTEXT} Provide a concise overview of the main activities and accomplishments during this period. Also calculate approximately how many productive hours were spent and on what main categories of work. Daily summaries: $(echo "$PERIOD_SUMMARIES" | jq -c)"
+  PROMT=$(cat << EOF
+Analyze the following daily summaries from $START_DATE to $END_DATE.
+
+Provide a concise overview of the main activities and accomplishments during
+this period. Also calculate approximately how many productive hours were spent
+and on what main categories of work.
+
+User context:
+
+$USER_CONTEXT
+
+Daily summaries:
+
+$PERIOD_SUMMARIES
+EOF
+)
   
   # If debug mode is enabled, show the input data
   if [ "$DEBUG" -eq 1 ]; then
-    echo "DEBUG: Ollama Prompt:"
-    echo "---------------------"
-    echo "$OLLAMA_PROMPT"
-    echo "-------------------"
-    echo "DEBUG: Daily Summaries Input:"
-    echo "-----------------------------"
-    echo "$PERIOD_SUMMARIES" | jq
+    echo "-------------"
+    echo "DEBUG Prompt:"
+    echo "-------------"
+    echo "$PROMT"
     exit 0
   fi
   
   # Run the Ollama model
-  PERIOD_SUMMARY=$(ollama run gemma3:27b-it-qat "$OLLAMA_PROMPT")
+  PERIOD_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
   echo "$PERIOD_SUMMARY"
 else
   echo "No data available to generate a summary for this period."

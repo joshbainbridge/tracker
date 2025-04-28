@@ -5,25 +5,21 @@ let
 
   capture-screenshot = pkgs.writeShellApplication {
     name = "capture-screenshot";
-    runtimeInputs = with pkgs; [ ];
     text = builtins.readFile ../bin/capture-screenshot.sh;
   };
 
   process-screenshots = pkgs.writeShellApplication {
     name = "process-screenshots";
-    runtimeInputs = with pkgs; [ jq ollama ];
     text = builtins.readFile ../bin/process-screenshots.sh;
   };
 
   process-summaries = pkgs.writeShellApplication {
     name = "process-summaries";
-    runtimeInputs = with pkgs; [ jq ollama ];
     text = builtins.readFile ../bin/process-summaries.sh;
   };
 
   query-summaries = pkgs.writeShellApplication {
     name = "query-summaries";
-    runtimeInputs = with pkgs; [ jq ollama ];
     text = builtins.readFile ../bin/query-summaries.sh;
   };
 in {
@@ -68,7 +64,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ capture-screenshot process-screenshots process-summaries query-summaries ];
+    home.packages = [ query-summaries ];
 
     # Ensure ollama is enabled
     services.ollama.enable = true;
