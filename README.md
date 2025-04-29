@@ -39,6 +39,8 @@ Add the following to your `home.nix`:
 
 Make sure to replace `/path/to/tracker` with the actual path to this repository.
 
+**Note:** After updating your `home.nix` file, run `home-manager switch --impure` to apply the changes.
+
 ## Configuration
 
 | Option | Description | Default |
@@ -53,13 +55,13 @@ Make sure to replace `/path/to/tracker` with the actual path to this repository.
 
 ## User Context
 
-You can enhance the accuracy of AI-generated summaries by providing personal context about your work. Create a `user-context.txt` file in the `$HOME/.time-tracker/` directory that includes information such as:
+You can enhance the accuracy of AI-generated summaries by providing personal context about your work. Create a `user-context.txt` file in the `$HOME/.time-tracker` directory that includes information such as:
 
-- Your professional role
-- Projects you're working on
-- Project IDs for time tracking
-- Usual work patterns
-- Specific activities you want to track
+- Your professional role.
+- Projects you're working on.
+- Project IDs for time tracking.
+- Usual work patterns.
+- Specific activities you want to track.
 
 Example `user-context.txt`:
 ```
@@ -81,7 +83,7 @@ The time tracker will automatically include this information in AI prompts, resu
 
 ## Output
 
-The service generates three JSON files in the `$HOME/.time-tracker/` directory.
+The service generates three JSON files in the `$HOME/.time-tracker` directory.
 
 **Note:** Temporary screenshot PNG files are stored under `/tmp/time-tracker` and are automatically deleted after processing.
 
