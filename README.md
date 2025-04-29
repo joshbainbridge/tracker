@@ -15,9 +15,9 @@ A Nix-based time tracking service for macOS that monitors activity and uses loca
 
 ## Installation
 
-This service requires Nix and Home Manager.
+The service orchestration requires both Nix and Home Manager.
 
-Add the following to your `home.nix`:
+You will need to add the following to your `home.nix`:
 
 ```nix
 {
@@ -39,7 +39,7 @@ Add the following to your `home.nix`:
 
 Make sure to replace `/path/to/tracker` with the actual path to this repository.
 
-**Note:** After updating your `home.nix` file, run `home-manager switch --impure` to apply the changes.
+After updating your `home.nix` file, run `home-manager switch --impure` to apply the changes.
 
 ## Configuration
 
@@ -120,8 +120,13 @@ query-summaries --start 2025-04-21 --end 2025-04-25
 # Query by week number
 query-summaries --week 17 --year 2025
 
+# Include calendar events
+query-summaries --week 17 --calendar 'Work'
+
 # Debug mode to see input data
 query-summaries --week 17 --debug
 ```
 
 This tool aggregates daily summaries and generates an overview of your activities across a specified date range or work week.
+
+When used with the `--calendar` flag followed by a calendar name, it will include events from that calendar in your macOS Calendar app.
