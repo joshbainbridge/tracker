@@ -51,8 +51,23 @@ for HOUR in {00..23}; do
     continue
   fi
 
+  PROMT=$(cat << EOF
+Summarize the following activities for the hour $YESTERDAY $HOUR:00. What
+was the person primarily working on during this hour? Be concise (max 500
+characters).
+
+User context:
+
+$USER_CONTEXT
+
+Activities:
+
+$(echo "$HOUR_DATA" | jq -c)
+EOF
+)
+
   # Generate summary using ollama
-  HOUR_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following activities for the hour $YESTERDAY $HOUR:00. ${USER_CONTEXT} What was the person primarily working on during this hour? Be concise (max 500 characters). Activities: $(echo "$HOUR_DATA" | jq -c)")
+  HOUR_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
 
   # Add hourly summary to the hourly summaries file
   temp_file=$(mktemp)
@@ -71,8 +86,23 @@ if [ "$(echo "$HOURS_DATA" | jq 'length')" -eq 0 ]; then
   exit 0
 fi
 
+PROMT=$(cat << EOF
+Summarize the following hourly activities for the day $YESTERDAY. What was
+the person primarily working on during this day? How many productive hours? Be
+concise (max 1000 characters).
+
+User context:
+
+$USER_CONTEXT
+
+Hourly summaries:
+
+$(echo "$HOURS_DATA" | jq -c)
+EOF
+)
+
 # Generate daily summary using ollama
-DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "Summarize the following hourly activities for the day $YESTERDAY. ${USER_CONTEXT} What was the person primarily working on during this day? How many productive hours? Be concise (max 1000 characters). Hourly summaries: $(echo "$HOURS_DATA" | jq -c)")
+DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
 
 # Add daily summary to the daily summaries file
 temp_file=$(mktemp)

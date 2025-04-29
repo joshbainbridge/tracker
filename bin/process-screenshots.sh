@@ -28,9 +28,23 @@ for screenshot in "$SCREENSHOT_DIR"/*.png; do
   # Extract timestamp from filename
   filename=$(basename "$screenshot")
   timestamp="${filename%.png}"
+
+  PROMT=$(cat << EOF
+Give a single estimate of what the user is actively doing in this screenshot.
+Be concise (max 400 characters). A single block of text.
+
+User context:
+
+$USER_CONTEXT
+
+Screenshot:
+
+$screenshot
+EOF
+)
   
   # Get screenshot summary using ollama
-  summary=$(ollama run gemma3:27b-it-qat "Give a single estimate of what the user is actively doing in this screenshot. ${USER_CONTEXT} RETURN ONLY ONE BLOCK OF TEXT. NO MORE THAN 400 CHARACTERS. $screenshot")
+  summary=$(ollama run gemma3:27b-it-qat "$PROMT")
   
   # Add to JSON file
   temp_file=$(mktemp)
