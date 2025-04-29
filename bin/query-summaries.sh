@@ -122,10 +122,10 @@ fi
 
 # Function to get calendar events for a specific date
 get_calendar_events() {
-  target_date="$1"
+  date="$1"
   calendar_name="$2"
 
-  swift - << 'EOF' "$target_date" "$calendar_name"
+  swift - << 'EOF' "$date" "$calendar_name"
 import Foundation
 import EventKit
 
@@ -158,18 +158,32 @@ eventStore.requestFullAccessToEvents { granted, error in
         semaphore.signal()
         return
     }
-    let endDate = Calendar.current.date(byAdding: .day, value: 1, to: startDate)!
+    let endDate = Calendar.current.date(
+        byAdding: .day,
+        value: 1,
+        to: startDate
+    )!
 
-    let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+    let calendars = eventStore.calendars(for: .event)
+    let targetCalendars = calendars.filter {
+        $0.title == targetCalendarName
+    }
+
+    let predicate = eventStore.predicateForEvents(
+        withStart: startDate,
+        end: endDate,
+        calendars: targetCalendars
+    )
     let events = eventStore.events(matching: predicate)
 
-    for event in events.sorted(by: { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }) {
-        if event.calendar.title == targetCalendarName,
-           let start = event.startDate,
-           let end = event.endDate {
-            let minutes = Int(end.timeIntervalSince(start) / 60)
-            print("\(event.title ?? "No Title") | \(displayFormatter.string(from: start)) → \(displayFormatter.string(from: end)) | \(minutes) min")
-        }
+    for event in events {
+        let timeInterval = event.endDate.timeIntervalSince(event.startDate)
+        let minutes = Int(timeInterval / 60)
+        let title = event.title ?? "No Title"
+        let start = displayFormatter.string(from: event.startDate)
+        let end = displayFormatter.string(from: event.endDate)
+
+        print("\(title) | \(start) → \(end) | \(minutes) min")
     }
 
     semaphore.signal()
