@@ -15,42 +15,44 @@ fi
 mkdir -p "$SCREENSHOT_DIR"
 
 # Read user context if available
-USER_CONTEXT=""
+USER_CONTEXT="No context provided."
 if [ -f "$USER_CONTEXT_FILE" ]; then
   USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
 fi
 
-# Process all screenshots (not just current hour)
-for screenshot in "$SCREENSHOT_DIR"/*.png; do
-  # Skip if no matches found
-  [ -e "$screenshot" ] || continue
-  
-  # Extract timestamp from filename
-  filename=$(basename "$screenshot")
-  timestamp="${filename%.png}"
+# Get all unique timestamps from screenshots
+timestamps=$(find "$SCREENSHOT_DIR" -type f | sed -En 's|.*/([0-9]+(-[0-9]+){5})-[1234]+\.png$|\1|p' | sort -u)
+
+# Process screenshots by timestamp
+for timestamp in $timestamps; do
+  # Collect all screenshots for this timestamp
+  screenshots=$(find "$SCREENSHOT_DIR" -type f -name "$timestamp-*.png")
 
   PROMT=$(cat << EOF
-Give a single estimate of what the user is actively doing in this screenshot.
+Give a single estimate of what the user is actively doing across all these
+screenshots. These are different displays captured at the same moment in time.
 Be concise (max 400 characters). A single block of text.
 
 User context:
 
 $USER_CONTEXT
 
-Screenshot:
+Screenshots:
 
-$screenshot
+$screenshots
 EOF
 )
-  
+
   # Get screenshot summary using ollama
   summary=$(ollama run gemma3:27b-it-qat "$PROMT")
-  
+
   # Add to JSON file
   temp_file=$(mktemp)
   jq --arg timestamp "$timestamp" --arg summary "$summary" '. + {($timestamp): $summary}' "$OUTPUT_FILE" > "$temp_file"
   mv "$temp_file" "$OUTPUT_FILE"
-  
-  # Delete processed screenshot
-  rm "$screenshot"
+
+  # Delete processed screenshots
+  for screenshot in $screenshots; do
+    rm "$screenshot"
+  done
 done
