@@ -25,10 +25,16 @@ timestamps=$(find "$ACTIVITY_DIR" -type f | sed -En 's|.*/([0-9]+(-[0-9]+){5})\.
 
 # Process activity snapshots by timestamp
 for timestamp in $timestamps; do
+  # Find past activity (up to 5 entries)
+  past=$(jq -cr --arg current "$timestamp" \
+  'to_entries | sort_by(.key) | map(select(.key < $current)) | .[-5:][] | "\(.key) - \(.value)"' \
+  "$OUTPUT_FILE")
+
   # Collect all files for this activity timestamp
   screenshots=$(find "$ACTIVITY_DIR" -type f -name "$timestamp-*.png")
   textdata=$(find "$ACTIVITY_DIR" -type f -name "$timestamp.txt")
 
+  # Get text data about active window
   window=$(cat "$textdata")
 
   PROMT=$(cat << EOF
@@ -39,6 +45,10 @@ Be concise (max 400 characters). A single block of text.
 User context:
 
 $USER_CONTEXT
+
+Past activity (newest first):
+
+$past
 
 Screenshots:
 

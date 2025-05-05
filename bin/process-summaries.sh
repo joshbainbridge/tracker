@@ -41,12 +41,18 @@ for HOUR in {00..23}; do
     continue
   fi
 
+  # Find recent hours (up to 5)
+  PAST=$(jq -cr --arg current "$HOUR_KEY" \
+  'to_entries | sort_by(.key) | map(select(.key < $current)) | .[-5:][] | "\(.key) - \(.value)"' \
+  "$HOURLY_SUMMARY_FILE")
+
   # Filter activity data for this hour of yesterday
-  HOUR_START="$YESTERDAY-$HOUR"
-  HOUR_DATA=$(jq --arg start "$HOUR_START" 'with_entries(select(.key | startswith($start))) | to_entries | map({timestamp: .key, activity: .value})' "$ACTIVITY_FILE")
+  HOUR_DATA=$(jq -cr --arg start "$HOUR_KEY" \
+  'to_entries | map(select(.key | startswith($start))) | .[] | "\(.key) - \(.value)"' \
+  "$ACTIVITY_FILE")
 
   # Skip if no data for this hour
-  if [ "$(echo "$HOUR_DATA" | jq 'length')" -eq 0 ]; then
+  if [ -z "$HOUR_DATA" ]; then
     echo "No data for $HOUR_KEY, skipping"
     continue
   fi
@@ -60,9 +66,13 @@ User context:
 
 $USER_CONTEXT
 
-Activities:
+Past hours (newest first):
 
-$(echo "$HOUR_DATA" | jq -c)
+$PAST
+
+Activity:
+
+$HOUR_DATA
 EOF
 )
 
@@ -77,11 +87,18 @@ EOF
   echo "Generated hourly summary for $HOUR_KEY"
 done
 
+# Find recent days (up to 5)
+PAST=$(jq -cr --arg current "$YESTERDAY" \
+'to_entries | sort_by(.key) | map(select(.key < $current)) | .[-5:][] | "\(.key) - \(.value)"' \
+"$DAILY_SUMMARY_FILE")
+
 # Get all hourly summaries for yesterday
-HOURS_DATA=$(jq --arg date "$YESTERDAY" 'with_entries(select(.key | startswith($date)))' "$HOURLY_SUMMARY_FILE")
+HOURS_DATA=$(jq -cr --arg date "$YESTERDAY" \
+'to_entries | map(select(.key | startswith($date))) | .[] | "\(.key) - \(.value)"' \
+"$HOURLY_SUMMARY_FILE")
 
 # Skip if no hourly summaries exist
-if [ "$(echo "$HOURS_DATA" | jq 'length')" -eq 0 ]; then
+if [ -z "$HOURS_DATA" ]; then
   echo "No hourly summaries for $YESTERDAY, skipping daily summary"
   exit 0
 fi
@@ -95,9 +112,13 @@ User context:
 
 $USER_CONTEXT
 
+Past days (newest first):
+
+$PAST
+
 Hourly summaries:
 
-$(echo "$HOURS_DATA" | jq -c)
+$HOURS_DATA
 EOF
 )
 
