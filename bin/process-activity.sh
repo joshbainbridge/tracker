@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCREENSHOT_DIR="${SCREENSHOT_DIR:-/tmp/time-tracker}"
+ACTIVITY_DIR="${ACTIVITY_DIR:-/tmp/time-tracker}"
 OUTPUT_FILE="${OUTPUT_FILE:-$HOME/.time-tracker/activity-snapshots.json}"
 USER_CONTEXT_FILE="${USER_CONTEXT_FILE:-$HOME/.time-tracker/user-context.txt}"
 
@@ -11,8 +11,8 @@ if [ ! -f "$OUTPUT_FILE" ]; then
   echo '{}' > "$OUTPUT_FILE"
 fi
 
-# Make sure screenshots directory exists
-mkdir -p "$SCREENSHOT_DIR"
+# Make sure activity directory exists
+mkdir -p "$ACTIVITY_DIR"
 
 # Read user context if available
 USER_CONTEXT="No context provided."
@@ -20,13 +20,16 @@ if [ -f "$USER_CONTEXT_FILE" ]; then
   USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
 fi
 
-# Get all unique timestamps from screenshots
-timestamps=$(find "$SCREENSHOT_DIR" -type f | sed -En 's|.*/([0-9]+(-[0-9]+){5})-[1234]+\.png$|\1|p' | sort -u)
+# Get all unique timestamps from activity snapshots
+timestamps=$(find "$ACTIVITY_DIR" -type f | sed -En 's|.*/([0-9]+(-[0-9]+){5})\.txt$|\1|p' | sort -u)
 
-# Process screenshots by timestamp
+# Process activity snapshots by timestamp
 for timestamp in $timestamps; do
-  # Collect all screenshots for this timestamp
-  screenshots=$(find "$SCREENSHOT_DIR" -type f -name "$timestamp-*.png")
+  # Collect all files for this activity timestamp
+  screenshots=$(find "$ACTIVITY_DIR" -type f -name "$timestamp-*.png")
+  textdata=$(find "$ACTIVITY_DIR" -type f -name "$timestamp.txt")
+
+  window=$(cat "$textdata")
 
   PROMT=$(cat << EOF
 Give a single estimate of what the user is actively doing across all these
@@ -40,6 +43,10 @@ $USER_CONTEXT
 Screenshots:
 
 $screenshots
+
+Active window:
+
+$window
 EOF
 )
 
@@ -55,4 +62,7 @@ EOF
   for screenshot in $screenshots; do
     rm "$screenshot"
   done
+
+  # Delete processed text files
+  rm "$textdata"
 done

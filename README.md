@@ -27,7 +27,7 @@ You will need to add the following to your `home.nix`:
 
   services.time-tracker = {
     enable = true;
-    screenshotInterval = 5;
+    captureInterval = 5;
     processingInterval = 30;
     workHoursOnly = true;
     weekdaysOnly = true;
@@ -46,7 +46,7 @@ After updating your `home.nix` file, run `home-manager switch --impure` to apply
 | Option | Description | Default |
 |--------|-------------|---------|
 | `enable` | Enable the time tracker service | `false` |
-| `screenshotInterval` | Interval in minutes between activity captures | `5` |
+| `captureInterval` | Interval in minutes between activity captures | `5` |
 | `processingInterval` | Interval in minutes between processing activities | `30` |
 | `workHoursOnly` | Whether to run only during configured work hours | `true` |
 | `weekdaysOnly` | Whether to run only on weekdays (Monday-Friday) | `true` |
@@ -85,7 +85,7 @@ The time tracker will automatically include this information in AI prompts, resu
 
 The service generates three JSON files in the `$HOME/.time-tracker` directory.
 
-**Note:** Temporary screenshot PNG files are stored under `/tmp/time-tracker` and are automatically deleted after processing.
+**Note:** Temporary screenshot and activity data files are stored under `/tmp/time-tracker` and are automatically deleted after processing.
 
 1. **Activity Snapshots** (`activity-snapshots.json`):
    ```json

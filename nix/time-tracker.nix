@@ -3,16 +3,16 @@
 let
   cfg = config.services.time-tracker;
 
-  capture-screenshot = pkgs.writeShellApplication {
-    name = "capture-screenshot";
+  capture-activity = pkgs.writeShellApplication {
+    name = "capture-activity";
     runtimeInputs = with pkgs; [ ];
-    text = builtins.readFile ../bin/capture-screenshot.sh;
+    text = builtins.readFile ../bin/capture-activity.sh;
   };
 
-  process-screenshots = pkgs.writeShellApplication {
-    name = "process-screenshots";
+  process-activity = pkgs.writeShellApplication {
+    name = "process-activity";
     runtimeInputs = with pkgs; [ jq ollama ];
-    text = builtins.readFile ../bin/process-screenshots.sh;
+    text = builtins.readFile ../bin/process-activity.sh;
   };
 
   process-summaries = pkgs.writeShellApplication {
@@ -30,16 +30,16 @@ in {
   options.services.time-tracker = {
     enable = lib.mkEnableOption "Time tracker service";
 
-    screenshotInterval = lib.mkOption {
+    captureInterval = lib.mkOption {
       type = lib.types.int;
       default = 5;
-      description = "Interval in minutes between screenshots";
+      description = "Interval in minutes between activity captures";
     };
 
     processingInterval = lib.mkOption {
       type = lib.types.int;
       default = 30;
-      description = "Interval in minutes between processing screenshots";
+      description = "Interval in minutes between processing activity snapshots";
     };
 
     workHoursOnly = lib.mkOption {
@@ -79,7 +79,7 @@ in {
         enable = true;
         config = {
           Label = "org.nix-community.home.time-tracker-capture";
-          ProgramArguments = [ "${capture-screenshot}/bin/capture-screenshot" ];
+          ProgramArguments = [ "${capture-activity}/bin/capture-activity" ];
           KeepAlive = false;
           RunAtLoad = false;
           StartCalendarInterval = let
@@ -90,7 +90,7 @@ in {
                     then lib.lists.range cfg.workStartHour cfg.workEndHour
                     else lib.lists.range 0 23;
             max = 60;
-            step = cfg.screenshotInterval;
+            step = cfg.captureInterval;
             count = builtins.div (max - 1) step;
             minutes = builtins.genList (i: i * step) count;
           in lib.concatLists (map (minute:
@@ -109,7 +109,7 @@ in {
         enable = true;
         config = {
           Label = "org.nix-community.home.time-tracker-process";
-          ProgramArguments = [ "${process-screenshots}/bin/process-screenshots" ];
+          ProgramArguments = [ "${process-activity}/bin/process-activity" ];
           KeepAlive = false;
           RunAtLoad = false;
           StartInterval = cfg.processingInterval * 60;
