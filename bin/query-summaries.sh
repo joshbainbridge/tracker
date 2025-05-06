@@ -79,29 +79,21 @@ fi
 
 # Calculate dates from week number if provided
 if [ -n "$WEEK_NUMBER" ]; then
-  # Calculate the date of the first day of the year
-  FIRST_DAY=$(date -j -f "%Y-%m-%d" "$YEAR_NUMBER-01-01" +"%Y-%m-%d")
+  # Get first day of the year
+  FIRST_DAY="$YEAR_NUMBER-01-01"
   
-  # Calculate the day of week of the first day (1-7, where 1 is Monday)
+  # Get day of week (1-7, where 1 is Monday)
   FIRST_DAY_WEEKDAY=$(date -j -f "%Y-%m-%d" "$FIRST_DAY" +"%u")
   
-  # Calculate days to add to get to the first Monday of the year
-  if [ "$FIRST_DAY_WEEKDAY" -eq 1 ]; then
-    DAYS_TO_ADD=0
-  else
-    DAYS_TO_ADD=$((8 - FIRST_DAY_WEEKDAY))
-  fi
+  # Find the Monday of week 1 (the Monday on or before January 1st)
+  DAYS_TO_SUBTRACT=$((FIRST_DAY_WEEKDAY - 1))
+  FIRST_MONDAY=$(date -j -v-"${DAYS_TO_SUBTRACT}"d -f "%Y-%m-%d" "$FIRST_DAY" +"%Y-%m-%d")
   
-  # Calculate the first Monday of the year
-  FIRST_MONDAY=$(date -j -v+"$DAYS_TO_ADD"d -f "%Y-%m-%d" "$FIRST_DAY" +"%Y-%m-%d")
-  
-  # Calculate days to add to get to the Monday of the requested week
+  # Find the Monday of the requested week
   DAYS_TO_ADD=$(( (WEEK_NUMBER - 1) * 7 ))
-  
-  # Calculate the Monday of the requested week
   START_DATE=$(date -j -v+"$DAYS_TO_ADD"d -f "%Y-%m-%d" "$FIRST_MONDAY" +"%Y-%m-%d")
   
-  # Calculate the Friday of the requested week (4 days after Monday)
+  # Find the Friday of the same week
   END_DATE=$(date -j -v+4d -f "%Y-%m-%d" "$START_DATE" +"%Y-%m-%d")
   
   echo "Week $WEEK_NUMBER of $YEAR_NUMBER: $START_DATE to $END_DATE (Monday to Friday)"
