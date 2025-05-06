@@ -15,9 +15,9 @@ fi
 mkdir -p "$ACTIVITY_DIR"
 
 # Read user context if available
-USER_CONTEXT="No context provided."
+user_context="No context provided."
 if [ -f "$USER_CONTEXT_FILE" ]; then
-  USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
+  user_context="User context: $(cat "$USER_CONTEXT_FILE")"
 fi
 
 # Get all unique timestamps from activity snapshots
@@ -32,19 +32,19 @@ for timestamp in $timestamps; do
 
   # Collect all files for this activity timestamp
   screenshots=$(find "$ACTIVITY_DIR" -type f -name "$timestamp-*.png")
-  textdata=$(find "$ACTIVITY_DIR" -type f -name "$timestamp.txt")
+  text_data=$(find "$ACTIVITY_DIR" -type f -name "$timestamp.txt")
 
   # Get text data about active window
-  window=$(cat "$textdata")
+  window=$(cat "$text_data")
 
-  PROMT=$(cat << EOF
+  prompt=$(cat << EOF
 Give a single estimate of what the user is actively doing across all these
 screenshots. These are different displays captured at the same moment in time.
 Be concise (max 400 characters). A single block of text.
 
 User context:
 
-$USER_CONTEXT
+$user_context
 
 Past activity (newest first):
 
@@ -61,7 +61,7 @@ EOF
 )
 
   # Get screenshot summary using ollama
-  summary=$(ollama run gemma3:27b-it-qat "$PROMT")
+  summary=$(ollama run gemma3:27b-it-qat "$prompt")
 
   # Read existing JSON and add summary
   json=$(jq --arg timestamp "$timestamp" --arg summary "$summary" \
@@ -75,5 +75,5 @@ EOF
   rm "$screenshots"
 
   # Delete processed text files
-  rm "$textdata"
+  rm "$text_data"
 done

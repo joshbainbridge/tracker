@@ -26,37 +26,37 @@ function show_usage {
 }
 
 # Parse arguments
-START_DATE=""
-END_DATE=""
-WEEK_NUMBER=""
-YEAR_NUMBER=$(date +"%Y")
-DEBUG=0
-CALENDAR_NAME=""
+start_date=""
+end_date=""
+week_number=""
+year_number=$(date +"%Y")
+debug=0
+calendar_name=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --start)
-      START_DATE="$2"
+      start_date="$2"
       shift 2
       ;;
     --end)
-      END_DATE="$2"
+      end_date="$2"
       shift 2
       ;;
     --week)
-      WEEK_NUMBER="$2"
+      week_number="$2"
       shift 2
       ;;
     --year)
-      YEAR_NUMBER="$2"
+      year_number="$2"
       shift 2
       ;;
     --calendar)
-      CALENDAR_NAME="$2"
+      calendar_name="$2"
       shift 2
       ;;
     --debug)
-      DEBUG=1
+      debug=1
       shift
       ;;
     --help)
@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Unknown option: $1"
+      echo "Error: Unknown option: $1"
       show_usage
       exit 1
       ;;
@@ -78,38 +78,38 @@ if [ ! -f "$DAILY_SUMMARY_FILE" ]; then
 fi
 
 # Calculate dates from week number if provided
-if [ -n "$WEEK_NUMBER" ]; then
+if [ -n "$week_number" ]; then
   # Get first day of the year
-  FIRST_DAY="$YEAR_NUMBER-01-01"
+  first_day="$year_number-01-01"
   
   # Get day of week (1-7, where 1 is Monday)
-  FIRST_DAY_WEEKDAY=$(date -j -f "%Y-%m-%d" "$FIRST_DAY" +"%u")
+  first_day_weekday=$(date -j -f "%Y-%m-%d" "$first_day" +"%u")
   
   # Find the Monday of week 1 (the Monday on or before January 1st)
-  DAYS_TO_SUBTRACT=$((FIRST_DAY_WEEKDAY - 1))
-  FIRST_MONDAY=$(date -j -v-"${DAYS_TO_SUBTRACT}"d -f "%Y-%m-%d" "$FIRST_DAY" +"%Y-%m-%d")
+  days_to_subtract=$((first_day_weekday - 1))
+  first_monday=$(date -j -v-"${days_to_subtract}"d -f "%Y-%m-%d" "$first_day" +"%Y-%m-%d")
   
   # Find the Monday of the requested week
-  DAYS_TO_ADD=$(( (WEEK_NUMBER - 1) * 7 ))
-  START_DATE=$(date -j -v+"$DAYS_TO_ADD"d -f "%Y-%m-%d" "$FIRST_MONDAY" +"%Y-%m-%d")
+  days_to_add=$(( (week_number - 1) * 7 ))
+  start_date=$(date -j -v+"$days_to_add"d -f "%Y-%m-%d" "$first_monday" +"%Y-%m-%d")
   
   # Find the Friday of the same week
-  END_DATE=$(date -j -v+4d -f "%Y-%m-%d" "$START_DATE" +"%Y-%m-%d")
+  end_date=$(date -j -v+4d -f "%Y-%m-%d" "$start_date" +"%Y-%m-%d")
   
-  echo "Week $WEEK_NUMBER of $YEAR_NUMBER: $START_DATE to $END_DATE (Monday to Friday)"
+  echo "Week $week_number of $year_number: $start_date to $end_date (Monday to Friday)"
 fi
 
 # Validate that we have a date range
-if [ -z "$START_DATE" ] || [ -z "$END_DATE" ]; then
+if [ -z "$start_date" ] || [ -z "$end_date" ]; then
   echo "Error: You must specify either a date range (--start and --end) or a week number (--week)"
   show_usage
   exit 1
 fi
 
 # Read user context if available
-USER_CONTEXT=""
+user_context="No context provided."
 if [ -f "$USER_CONTEXT_FILE" ]; then
-  USER_CONTEXT=$(cat "$USER_CONTEXT_FILE")
+  user_context=$(cat "$USER_CONTEXT_FILE")
 fi
 
 # Function to get calendar events for a specific date
@@ -186,7 +186,7 @@ EOF
 }
 
 # Get all summaries in the date range
-PERIOD_SUMMARIES=$(jq -c --arg start "$START_DATE" --arg end "$END_DATE" \
+period_summaries=$(jq -c --arg start "$start_date" --arg end "$end_date" \
 'to_entries[] | select(.key >= $start and .key <= $end)' \
 "$DAILY_SUMMARY_FILE" \
 | while read -r entry; do
@@ -199,8 +199,8 @@ PERIOD_SUMMARIES=$(jq -c --arg start "$START_DATE" --arg end "$END_DATE" \
   echo "$summary"
   echo
 
-  if [ -n "$CALENDAR_NAME" ]; then
-    events=$(get_calendar_events "$date" "$CALENDAR_NAME")
+  if [ -n "$calendar_name" ]; then
+    events=$(get_calendar_events "$date" "$calendar_name")
     echo "Calendar:"
     echo "$events"
     echo
@@ -208,10 +208,10 @@ PERIOD_SUMMARIES=$(jq -c --arg start "$START_DATE" --arg end "$END_DATE" \
 done)
 
 # Generate overall summary using ollama if we found any data
-if [ -n "$PERIOD_SUMMARIES" ]; then
+if [ -n "$period_summaries" ]; then
   # Create the prompt for Ollama
-  PROMT=$(cat << EOF
-Analyze the following daily summaries from $START_DATE to $END_DATE.
+  prompt=$(cat << EOF
+Analyze the following daily summaries from $start_date to $end_date.
 
 Provide a concise overview of the main activities and accomplishments during
 this period. Also calculate approximately how many productive hours were spent
@@ -219,26 +219,26 @@ and on what main categories of work.
 
 User context:
 
-$USER_CONTEXT
+$user_context
 
 Daily summaries:
 
-$PERIOD_SUMMARIES
+$period_summaries
 EOF
 )
   
   # If debug mode is enabled, show the input data
-  if [ "$DEBUG" -eq 1 ]; then
+  if [ "$debug" -eq 1 ]; then
     echo "-------------"
     echo "DEBUG Prompt:"
     echo "-------------"
-    echo "$PROMT"
+    echo "$prompt"
     exit 0
   fi
   
   # Run the Ollama model
-  PERIOD_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
-  echo "$PERIOD_SUMMARY"
+  period_summary=$(ollama run gemma3:27b-it-qat "$prompt")
+  echo "$period_summary"
 else
   echo "No data available to generate a summary for this period."
 fi

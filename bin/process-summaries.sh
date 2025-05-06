@@ -16,126 +16,126 @@ for file in "$HOURLY_SUMMARY_FILE" "$DAILY_SUMMARY_FILE"; do
 done
 
 # Read user context if available
-USER_CONTEXT=""
+user_context="No context provided."
 if [ -f "$USER_CONTEXT_FILE" ]; then
-  USER_CONTEXT="User context: $(cat "$USER_CONTEXT_FILE")"
+  user_context="User context: $(cat "$USER_CONTEXT_FILE")"
 fi
 
 # Process data for yesterday
-YESTERDAY=$(date -v-1d +"%Y-%m-%d")
-echo "Processing summaries for $YESTERDAY"
+yesterday=$(date -v-1d +"%Y-%m-%d")
+echo "Processing summaries for $yesterday"
 
 # Check if yesterday is already in the daily summaries
-if jq -e --arg date "$YESTERDAY" '.[$date]' "$DAILY_SUMMARY_FILE" > /dev/null 2>&1; then
-  echo "Daily summary for $YESTERDAY already exists, skipping"
+if jq -e --arg date "$yesterday" '.[$date]' "$DAILY_SUMMARY_FILE" > /dev/null 2>&1; then
+  echo "Daily summary for $yesterday already exists, skipping"
   exit 0
 fi
 
 # Process hourly summaries
 for h in {0..23}; do
   # Ensure hour is zero-padded
-  HOUR=$(printf "%02d" "$h")
-  HOUR_KEY="$YESTERDAY-$HOUR"
+  hour=$(printf "%02d" "$h")
+  hour_key="$yesterday-$hour"
 
   # Check if hourly summary already exists
-  if jq -e --arg key "$HOUR_KEY" '.[$key]' "$HOURLY_SUMMARY_FILE" > /dev/null 2>&1; then
-    echo "Hourly summary for $HOUR_KEY already exists, skipping"
+  if jq -e --arg key "$hour_key" '.[$key]' "$HOURLY_SUMMARY_FILE" > /dev/null 2>&1; then
+    echo "Hourly summary for $hour_key already exists, skipping"
     continue
   fi
 
   # Find recent hours (up to 5)
-  PAST=$(jq -r --arg current "$HOUR_KEY" \
+  past=$(jq -r --arg current "$hour_key" \
   'to_entries | map(select(.key < $current)) | sort_by(.key) | .[-5:][] | "\(.key) - \(.value)"' \
   "$HOURLY_SUMMARY_FILE")
 
   # Filter activity data for this hour of yesterday
-  HOUR_DATA=$(jq -r --arg start "$HOUR_KEY" \
+  hour_data=$(jq -r --arg start "$hour_key" \
   'to_entries | map(select(.key | startswith($start))) | .[] | "\(.key) - \(.value)"' \
   "$ACTIVITY_FILE")
 
   # Skip if no data for this hour
-  if [ -z "$HOUR_DATA" ]; then
-    echo "No data for $HOUR_KEY, skipping"
+  if [ -z "$hour_data" ]; then
+    echo "No data for $hour_key, skipping"
     continue
   fi
 
-  PROMT=$(cat << EOF
-Summarize the following activities for the hour $YESTERDAY $HOUR:00. What
+  prompt=$(cat << EOF
+Summarize the following activities for the hour $yesterday $hour:00. What
 was the person primarily working on during this hour? Be concise (max 500
 characters).
 
 User context:
 
-$USER_CONTEXT
+$user_context
 
 Past hours (newest first):
 
-$PAST
+$past
 
 Activity:
 
-$HOUR_DATA
+$hour_data
 EOF
 )
 
   # Generate summary using ollama
-  HOUR_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
+  hour_summary=$(ollama run gemma3:27b-it-qat "$prompt")
 
   # Add hourly summary to the hourly summaries file
-  json=$(jq --arg key "$HOUR_KEY" --arg summary "$HOUR_SUMMARY" \
+  json=$(jq --arg key "$hour_key" --arg summary "$hour_summary" \
   '. + {($key): $summary}' \
   "$HOURLY_SUMMARY_FILE")
 
   # Output to JSON file
   echo "$json" > "$HOURLY_SUMMARY_FILE"
 
-  echo "Generated hourly summary for $HOUR_KEY"
+  echo "Generated hourly summary for $hour_key"
 done
 
 # Find recent days (up to 5)
-PAST=$(jq -r --arg current "$YESTERDAY" \
+past=$(jq -r --arg current "$yesterday" \
 'to_entries | map(select(.key < $current)) | sort_by(.key) | .[-5:][] | "\(.key) - \(.value)"' \
 "$DAILY_SUMMARY_FILE")
 
 # Get all hourly summaries for yesterday
-HOURS_DATA=$(jq -r --arg date "$YESTERDAY" \
+hour_data=$(jq -r --arg date "$yesterday" \
 'to_entries | map(select(.key | startswith($date))) | .[] | "\(.key) - \(.value)"' \
 "$HOURLY_SUMMARY_FILE")
 
 # Skip if no hourly summaries exist
-if [ -z "$HOURS_DATA" ]; then
-  echo "No hourly summaries for $YESTERDAY, skipping daily summary"
+if [ -z "$hour_data" ]; then
+  echo "No hourly summaries for $yesterday, skipping daily summary"
   exit 0
 fi
 
-PROMT=$(cat << EOF
-Summarize the following hourly activities for the day $YESTERDAY. What was
+prompt=$(cat << EOF
+Summarize the following hourly activities for the day $yesterday. What was
 the person primarily working on during this day? How many productive hours? Be
 concise (max 1000 characters).
 
 User context:
 
-$USER_CONTEXT
+$user_context
 
 Past days (newest first):
 
-$PAST
+$past
 
 Hourly summaries:
 
-$HOURS_DATA
+$hour_data
 EOF
 )
 
 # Generate daily summary using ollama
-DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
+day_summary=$(ollama run gemma3:27b-it-qat "$prompt")
 
 # Add daily summary to the daily summaries file
-json=$(jq --arg date "$YESTERDAY" --arg summary "$DAY_SUMMARY" \
+json=$(jq --arg date "$yesterday" --arg summary "$day_summary" \
 '. + {($date): $summary}' \
 "$DAILY_SUMMARY_FILE")
 
 # Output to JSON file
 echo "$json" > "$DAILY_SUMMARY_FILE"
 
-echo "Generated daily summary for $YESTERDAY"
+echo "Generated daily summary for $yesterday"

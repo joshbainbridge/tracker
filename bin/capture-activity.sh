@@ -6,8 +6,8 @@ ACTIVITY_DIR="${ACTIVITY_DIR:-/tmp/time-tracker}"
 mkdir -p "$ACTIVITY_DIR"
 
 # Take screenshot with screencapture
-FILENAME="$ACTIVITY_DIR/$(date +"%Y-%m-%d-%H-%M-%S")"
-screencapture -x -C "$FILENAME-1.png" "$FILENAME-2.png" "$FILENAME-3.png" "$FILENAME-4.png"
+filename="$ACTIVITY_DIR/$(date +"%Y-%m-%d-%H-%M-%S")"
+screencapture -x -C "$filename-1.png" "$filename-2.png" "$filename-3.png" "$filename-4.png"
 
 get_active_window() {
 swift - << 'EOF'
@@ -59,4 +59,4 @@ print("Window Title: \(windowTitle)")
 EOF
 }
 
-get_active_window > "$FILENAME.txt"
+get_active_window > "$filename.txt"
