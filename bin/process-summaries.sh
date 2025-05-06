@@ -32,7 +32,9 @@ if jq -e --arg date "$YESTERDAY" '.[$date]' "$DAILY_SUMMARY_FILE" > /dev/null 2>
 fi
 
 # Process hourly summaries
-for HOUR in {00..23}; do
+for h in {0..23}; do
+  # Ensure hour is zero-padded
+  HOUR=$(printf "%02d" "$h")
   HOUR_KEY="$YESTERDAY-$HOUR"
 
   # Check if hourly summary already exists
@@ -42,12 +44,12 @@ for HOUR in {00..23}; do
   fi
 
   # Find recent hours (up to 5)
-  PAST=$(jq -cr --arg current "$HOUR_KEY" \
-  'to_entries | sort_by(.key) | map(select(.key < $current)) | .[-5:][] | "\(.key) - \(.value)"' \
+  PAST=$(jq -r --arg current "$HOUR_KEY" \
+  'to_entries | map(select(.key < $current)) | sort_by(.key) | .[-5:][] | "\(.key) - \(.value)"' \
   "$HOURLY_SUMMARY_FILE")
 
   # Filter activity data for this hour of yesterday
-  HOUR_DATA=$(jq -cr --arg start "$HOUR_KEY" \
+  HOUR_DATA=$(jq -r --arg start "$HOUR_KEY" \
   'to_entries | map(select(.key | startswith($start))) | .[] | "\(.key) - \(.value)"' \
   "$ACTIVITY_FILE")
 
@@ -80,20 +82,23 @@ EOF
   HOUR_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
 
   # Add hourly summary to the hourly summaries file
-  temp_file=$(mktemp)
-  jq --arg key "$HOUR_KEY" --arg summary "$HOUR_SUMMARY" '. + {($key): $summary}' "$HOURLY_SUMMARY_FILE" > "$temp_file"
-  mv "$temp_file" "$HOURLY_SUMMARY_FILE"
+  json=$(jq --arg key "$HOUR_KEY" --arg summary "$HOUR_SUMMARY" \
+  '. + {($key): $summary}' \
+  "$HOURLY_SUMMARY_FILE")
+
+  # Output to JSON file
+  echo "$json" > "$HOURLY_SUMMARY_FILE"
 
   echo "Generated hourly summary for $HOUR_KEY"
 done
 
 # Find recent days (up to 5)
-PAST=$(jq -cr --arg current "$YESTERDAY" \
-'to_entries | sort_by(.key) | map(select(.key < $current)) | .[-5:][] | "\(.key) - \(.value)"' \
+PAST=$(jq -r --arg current "$YESTERDAY" \
+'to_entries | map(select(.key < $current)) | sort_by(.key) | .[-5:][] | "\(.key) - \(.value)"' \
 "$DAILY_SUMMARY_FILE")
 
 # Get all hourly summaries for yesterday
-HOURS_DATA=$(jq -cr --arg date "$YESTERDAY" \
+HOURS_DATA=$(jq -r --arg date "$YESTERDAY" \
 'to_entries | map(select(.key | startswith($date))) | .[] | "\(.key) - \(.value)"' \
 "$HOURLY_SUMMARY_FILE")
 
@@ -126,8 +131,11 @@ EOF
 DAY_SUMMARY=$(ollama run gemma3:27b-it-qat "$PROMT")
 
 # Add daily summary to the daily summaries file
-temp_file=$(mktemp)
-jq --arg date "$YESTERDAY" --arg summary "$DAY_SUMMARY" '. + {($date): $summary}' "$DAILY_SUMMARY_FILE" > "$temp_file"
-mv "$temp_file" "$DAILY_SUMMARY_FILE"
+json=$(jq --arg date "$YESTERDAY" --arg summary "$DAY_SUMMARY" \
+'. + {($date): $summary}' \
+"$DAILY_SUMMARY_FILE")
+
+# Output to JSON file
+echo "$json" > "$DAILY_SUMMARY_FILE"
 
 echo "Generated daily summary for $YESTERDAY"

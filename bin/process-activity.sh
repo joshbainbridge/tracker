@@ -26,8 +26,8 @@ timestamps=$(find "$ACTIVITY_DIR" -type f | sed -En 's|.*/([0-9]+(-[0-9]+){5})\.
 # Process activity snapshots by timestamp
 for timestamp in $timestamps; do
   # Find past activity (up to 5 entries)
-  past=$(jq -cr --arg current "$timestamp" \
-  'to_entries | sort_by(.key) | map(select(.key < $current)) | .[-5:][] | "\(.key) - \(.value)"' \
+  past=$(jq -r --arg current "$timestamp" \
+  'to_entries| map(select(.key < $current)) | sort_by(.key) | .[-5:][] | "\(.key) - \(.value)"' \
   "$OUTPUT_FILE")
 
   # Collect all files for this activity timestamp
@@ -63,15 +63,16 @@ EOF
   # Get screenshot summary using ollama
   summary=$(ollama run gemma3:27b-it-qat "$PROMT")
 
-  # Add to JSON file
-  temp_file=$(mktemp)
-  jq --arg timestamp "$timestamp" --arg summary "$summary" '. + {($timestamp): $summary}' "$OUTPUT_FILE" > "$temp_file"
-  mv "$temp_file" "$OUTPUT_FILE"
+  # Read existing JSON and add summary
+  json=$(jq --arg timestamp "$timestamp" --arg summary "$summary" \
+  '. + {($timestamp): $summary}' \
+  "$OUTPUT_FILE")
+
+  # Output to JSON file
+  echo "$json" > "$OUTPUT_FILE"
 
   # Delete processed screenshots
-  for screenshot in $screenshots; do
-    rm "$screenshot"
-  done
+  rm "$screenshots"
 
   # Delete processed text files
   rm "$textdata"

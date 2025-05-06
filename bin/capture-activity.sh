@@ -59,4 +59,4 @@ print("Window Title: \(windowTitle)")
 EOF
 }
 
-get_active_window >> "$FILENAME.txt"
+get_active_window > "$FILENAME.txt"
